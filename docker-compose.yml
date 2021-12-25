@@ -1,0 +1,71 @@
+version: "3.9"
+
+networks:
+    sanctumauth:
+        driver: bridge
+
+services:
+    app:
+        container_name: sanctumauth_php
+        build:
+            context: .
+            dockerfile: Dockerfile
+        image: digitalocean.com/php
+        restart: unless-stopped
+        tty: true
+        volumes:
+            - ./:/var/www
+            - ./.docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+        environment:
+            SERVICE_NAME: app
+            SERVICE_TAGS: dev
+        working_dir: /var/www
+        networks:
+            - sanctumauth
+
+    nginx:
+        container_name: sanctumauth_nginx
+        image: nginx:alpine
+        restart: unless-stopped
+        tty: true
+        volumes:
+            - ./:/var/www
+            - ./.docker/nginx/conf.d/:/etc/nginx/conf.d/
+        ports:
+            - "80:80"
+            - "443:443"
+        networks:
+            - sanctumauth
+
+    db:
+        container_name: sanctumauth_mysql5.7
+        image: mysql:5.7.22
+        restart: always
+        environment:
+            MYSQL_DATABASE: sanctumauth
+            MYSQL_USER: root
+            MYSQL_PASSWORD: root
+            MYSQL_ROOT_PASSWORD: root
+        volumes:
+            - ./.docker/mysql:/var/lib/mysql
+            - ./.docker/mysql.cnf:/etc/mysql/my.cnf
+        ports:
+            - 33066:3306
+        networks:
+            - sanctumauth
+
+    phpmyadmin:
+        container_name: sanctumauth_phpmyadmin
+        depends_on:
+            - db
+        image: phpmyadmin/phpmyadmin
+        restart: always
+        ports:
+            - 9002:80
+        environment:
+            PMA_HOST: db
+            MYSQL_ROOT_PASSWORD: admin
+            MYSQL_USER: root
+            MYSQL_PASSWORD: root
+        networks:
+            - sanctumauth
